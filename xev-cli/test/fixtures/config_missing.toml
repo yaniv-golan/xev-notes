@@ -1,0 +1,3 @@
+[default]
+make_zone = "eu2.make.com"
+webhook_search = "https://hook.eu2.make.com/search_test"

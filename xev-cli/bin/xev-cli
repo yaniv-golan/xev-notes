@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# xev-cli — Evernote access for AI agents via Make.com
+# No -e: subcommands return non-zero on errors (e.g., webhook timeouts)
+# and we handle those explicitly rather than exiting on every failure
+set -uo pipefail
+
+XEV_VERSION="0.1.0"
+XEV_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Source libraries
+# shellcheck source=/dev/null
+for lib in "${XEV_ROOT}/lib/"*.sh; do
+  source "$lib"
+done
+
+# Global flag defaults (env vars can override before CLI flags)
+# These are used by sourced lib files
+# shellcheck disable=SC2034
+XEV_PROFILE="${XEV_PROFILE:-default}"  # Env var override per spec
+# shellcheck disable=SC2034
+XEV_CONFIG_FILE=""
+# shellcheck disable=SC2034
+XEV_DOTENV=false
+# shellcheck disable=SC2034
+XEV_TRACE=false
+# shellcheck disable=SC2034
+XEV_PROGRESS="auto"
+
+# Parse global flags (before subcommand)
+# shellcheck disable=SC2034  # These vars are used by sourced lib files
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile) XEV_PROFILE="$2"; shift 2 ;;
+    --config-file) XEV_CONFIG_FILE="$2"; shift 2 ;;
+    --dotenv) XEV_DOTENV=true; shift ;;
+    --trace) XEV_TRACE=true; XEV_PROGRESS="never"; shift ;;
+    --progress) XEV_PROGRESS="$2"; shift 2 ;;
+    --version) echo "xev-cli ${XEV_VERSION}"; exit 0 ;;
+    --help|-h) xev_usage; exit 0 ;;
+    -*) echo "Unknown option: $1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+
+# Subcommand dispatch
+SUBCOMMAND="${1:-help}"
+shift || true
+
+case "$SUBCOMMAND" in
+  search)    cmd_search "$@" ;;
+  get)       cmd_get "$@" ;;
+  notebooks) cmd_notebooks "$@" ;;
+  create)    cmd_create "$@" ;;
+  update)    cmd_update "$@" ;;
+  config)    cmd_config "$@" ;;
+  help)      xev_usage ;;
+  *)         echo "Unknown command: $SUBCOMMAND" >&2; exit 2 ;;
+esac

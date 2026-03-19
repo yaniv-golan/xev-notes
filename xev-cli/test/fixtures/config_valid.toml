@@ -1,0 +1,10 @@
+[default]
+make_zone = "eu2.make.com"
+webhook_api_key = "testkey123"
+webhook_search = "https://hook.eu2.make.com/search_test"
+webhook_get = "https://hook.eu2.make.com/get_test"
+webhook_notebooks = "https://hook.eu2.make.com/notebooks_test"
+webhook_create = "https://hook.eu2.make.com/create_test"
+webhook_update = "https://hook.eu2.make.com/update_test"
+webhook_append = "https://hook.eu2.make.com/append_test"
+webhook_get_attachment = "https://hook.eu2.make.com/attachment_test"

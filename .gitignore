@@ -1,0 +1,16 @@
+# All private content (notes, plans, specs, validation data)
+_private/
+
+# Config files with webhook URLs and API keys
+*.toml
+!xev-cli/test/fixtures/*.toml
+
+# Environment files
+.env
+.env.*
+
+# OS junk
+.DS_Store
+
+# Claude Code local state
+.claude/
