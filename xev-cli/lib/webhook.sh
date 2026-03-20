@@ -46,6 +46,23 @@ xev_webhook_call() {
         XEV_RESPONSE=$(xev_json_error "TIMEOUT" "Make.com scenario timed out (180s). Retry the command.")
         return 1
       fi
+      # Check if response is an error from Make.com error handler
+      # (may contain unescaped quotes so use grep, not jq)
+      if [[ "$body" == *'"error_type"'* ]]; then
+        # Extract error message between "error_message": " and next unescaped "
+        local err_msg
+        err_msg=$(echo "$body" | sed -n 's/.*"error_message": *"\([^"]*\).*/\1/p' | head -1)
+        [[ -z "$err_msg" ]] && err_msg="Unknown Evernote error"
+        # Detect rate limiting
+        if [[ "$body" == *"RATE_LIMIT"* ]]; then
+          local duration
+          duration=$(echo "$body" | grep -o 'rateLimitDuration.[^,}]*' | grep -o '[0-9]*' | head -1)
+          XEV_RESPONSE=$(xev_json_error "RATE_LIMITED" "Evernote rate limit reached. Wait ${duration:-unknown}s before retrying.")
+          return 1
+        fi
+        XEV_RESPONSE=$(xev_json_error "EVERNOTE_ERROR" "${err_msg}")
+        return 1
+      fi
       if ! echo "$body" | jq . >/dev/null 2>&1; then
         XEV_RESPONSE=$(xev_json_error "MAKE_ERROR" "Invalid JSON response: $(echo "$body" | head -c 100)")
         return 1
