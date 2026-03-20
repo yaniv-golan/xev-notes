@@ -250,7 +250,7 @@ cmd_notebooks() {
 
   # Deduplicate notebook name/id pairs
   local notebooks
-  notebooks=$(echo "$response" | jq '[.[] | {id: .["Notebook ID"], name: .["Notebook name"]}] | unique_by(.id)')
+  notebooks=$(echo "$response" | jq '[.[] | {id: (.["Notebook ID"] // .notebookId), name: (.["Notebook name"] // .notebookName)}] | unique_by(.id)')
 
   case "$output_mode" in
     json) xev_json_ok "$notebooks" ;;
@@ -290,7 +290,7 @@ cmd_create() {
   # Case-insensitive notebook name resolution (per spec)
   local notebook_id
   notebook_id=$(echo "$nb_response" | jq -r --arg name "$notebook" \
-    '[.[] | select((.["Notebook name"] // .notebook_name // "") | ascii_downcase == ($name | ascii_downcase))] | .[0]["Notebook ID"] // .[0].notebook_id // empty')
+    '[.[] | select((.["Notebook name"] // .notebookName // .notebook_name // "") | ascii_downcase == ($name | ascii_downcase))] | .[0]["Notebook ID"] // .[0].notebookId // .[0].notebook_id // empty')
 
   [[ -z "$notebook_id" ]] && xev_die "NOT_FOUND" "Notebook '${notebook}' not found"
 
@@ -365,9 +365,12 @@ cmd_update() {
 
   local response
   if [[ "$append" == "true" ]]; then
-    # Use append webhook
+    # Use append webhook — send HTML fragment only, not full ENML envelope
+    # The append module adds content inside the existing note's <en-note> element
+    local append_html
+    append_html=$(echo "$content" | pandoc -f markdown -t html 2>/dev/null | sed -E 's/ class="[^"]*"//g; s/ id="[^"]*"//g')
     local payload
-    payload=$(jq -n --arg id "$note_id" --arg content "$content_enml" \
+    payload=$(jq -n --arg id "$note_id" --arg content "$append_html" \
       '{"note_id": $id, "content_enml": $content}')
     xev_webhook_call "$XEV_CFG_WEBHOOK_APPEND" "$payload" "Appending to note..." || xev_die_from_response
     local response="$XEV_RESPONSE"

@@ -64,6 +64,7 @@ xev_markdown_to_enml() {
     s/<span[^>]*>//g; s/<\/span>//g;
     s/<img[^>]*\/>//g;
     s/ class="[^"]*"//g;
+    s/ id="[^"]*"//g;
   ')
 
   # Wrap in ENML envelope
