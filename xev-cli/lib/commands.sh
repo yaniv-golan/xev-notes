@@ -54,10 +54,10 @@ cmd_search() {
   normalized=$(echo "$response" | jq -c '[.[] | {
     id: (.["Note ID"] // .id),
     title: (.Title // .title),
-    notebook: (.["Notebook name"] // .notebook),
-    notebook_id: (.["Notebook ID"] // .notebook_id),
-    updated: (.["Date updated"] // .updated),
-    note_link: (.["Note link"] // .note_link)
+    notebook: (.["Notebook name"] // .notebookName // .notebook),
+    notebook_id: (.["Notebook ID"] // .notebookId // .notebook_id),
+    updated: (.["Date updated"] // .dateUpdated // .updated),
+    note_link: (.["Note link"] // .noteLink // .note_link)
   }]')
 
   # Format output
