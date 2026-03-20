@@ -98,7 +98,8 @@ xev_validate_config() {
   [[ -z "$XEV_CFG_WEBHOOK_CREATE" ]] && missing="${missing} webhook_create"
   [[ -z "$XEV_CFG_WEBHOOK_UPDATE" ]] && missing="${missing} webhook_update"
   [[ -z "$XEV_CFG_WEBHOOK_APPEND" ]] && missing="${missing} webhook_append"
-  [[ -z "$XEV_CFG_WEBHOOK_GET_ATTACHMENT" ]] && missing="${missing} webhook_get_attachment"
+  # webhook_get_attachment is optional — attachment download degrades gracefully
+  # [[ -z "$XEV_CFG_WEBHOOK_GET_ATTACHMENT" ]] && missing="${missing} webhook_get_attachment"
 
   if [[ -n "$missing" ]]; then
     echo "Missing required config:${missing}" >&2

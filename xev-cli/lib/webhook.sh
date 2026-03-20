@@ -7,7 +7,7 @@
 # Callers MUST check return code: xev_webhook_call ... || xev_die_from_response
 xev_webhook_call() {
   local url="$1"
-  local payload="${2:-{}}"
+  local payload="${2:-"{}"}"
   local progress_msg="${3:-Calling webhook...}"
 
   xev_progress "$progress_msg"
@@ -23,8 +23,14 @@ xev_webhook_call() {
     echo "[TRACE] Body: $(echo "$payload" | head -c 200)" >&2
   fi
 
+  # Write payload to temp file to avoid shell quoting issues with multiline JSON
+  local tmp_payload
+  tmp_payload=$(mktemp)
+  printf '%s' "$payload" > "$tmp_payload"
+
   local raw_response
-  raw_response=$(curl "${curl_args[@]}" -d "$payload" "$url" 2>/dev/null)
+  raw_response=$(curl "${curl_args[@]}" -d @"$tmp_payload" "$url" 2>/dev/null)
+  rm -f "$tmp_payload"
 
   # Last line is HTTP status code (from -w '\n%{http_code}')
   XEV_LAST_HTTP_CODE=$(echo "$raw_response" | tail -1)

@@ -124,18 +124,18 @@ cmd_get() {
   local content
   case "$format" in
     enml)
-      content=$(echo "$response" | jq -r '.["Content (ENML)"] // .content_enml // .content // ""')
+      content=$(echo "$response" | jq -r '.["Content (ENML)"] // .htmlText // .content_enml // .content // ""')
       ;;
     text)
-      content=$(echo "$response" | jq -r '.Content // .content // ""')
+      content=$(echo "$response" | jq -r '.Content // .text // .content // ""')
       ;;
     markdown)
       local enml
-      enml=$(echo "$response" | jq -r '.["Content (ENML)"] // .content_enml // ""')
+      enml=$(echo "$response" | jq -r '.["Content (ENML)"] // .htmlText // .content_enml // ""')
       if [[ -n "$enml" ]]; then
         content=$(echo "$enml" | xev_enml_to_markdown)
       else
-        content=$(echo "$response" | jq -r '.Content // .content // ""')
+        content=$(echo "$response" | jq -r '.Content // .text // .content // ""')
       fi
       ;;
   esac
@@ -147,8 +147,8 @@ cmd_get() {
   result=$(echo "$response" | jq --arg content "$content" --arg fmt "$format" '{
     id: (.["Note ID"] // .note_id // .id),
     title: (.Title // .title),
-    notebook: (.["Notebook name"] // .notebook_name // .notebook),
-    updated: (.["Date updated"] // .date_updated // .updated),
+    notebook: (.["Notebook name"] // .notebook_name // .notebookId // .notebook),
+    updated: (.["Date updated"] // .dateUpdated // .date_updated // .updated),
     created: (.["Date created"] // .date_created // .created),
     content: $content,
     format: $fmt

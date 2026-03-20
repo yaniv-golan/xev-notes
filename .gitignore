@@ -1,4 +1,4 @@
-# All private content (notes, plans, specs, validation data)
+# All private content 
 _private/
 
 # Config files with webhook URLs and API keys
