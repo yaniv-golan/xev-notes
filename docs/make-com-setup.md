@@ -1,6 +1,6 @@
 # Make.com Setup Guide
 
-This guide walks you through setting up the 6 Make.com scenarios that connect xev-cli to your Evernote account. Allow ~15 minutes.
+This guide sets up the 6 Make.com scenarios that connect xev-cli to your Evernote account.
 
 ## Prerequisites
 
@@ -8,7 +8,40 @@ This guide walks you through setting up the 6 Make.com scenarios that connect xe
 - **Evernote account** with notes you want to access
 - **xev-cli** installed (the `xev-cli/bin/xev-cli` script in this repo)
 
-## Overview
+## Quick Setup (Recommended)
+
+The automatic setup creates all 6 scenarios via the Make.com API:
+
+```bash
+./xev-cli/bin/xev-cli config setup --auto
+```
+
+You'll need:
+- **Make.com API token** — get it from `https://YOUR_ZONE.make.com/user/api`
+- **Team ID** — visible in your Make.com URL (e.g., `https://eu2.make.com/12345/scenarios` → team ID is `12345`)
+
+After the script finishes, complete these manual steps in Make.com:
+
+1. Open each `xev-*` scenario
+2. Click the **Evernote module** (green circle) → select your Evernote connection → Save
+3. **Activate** the scenario (toggle ON at top right)
+
+Then verify:
+
+```bash
+xev-cli config check
+xev-cli search "test" --limit 3 --output human
+```
+
+If automatic setup doesn't work (some organizations restrict API access), follow the manual setup below.
+
+---
+
+## Manual Setup
+
+Allow ~15 minutes.
+
+### Overview
 
 You'll import 6 scenario blueprints into Make.com. Each scenario is a simple pipeline:
 
