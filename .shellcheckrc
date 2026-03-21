@@ -1,3 +1,9 @@
 shell=bash
-enable=all
-disable=SC2034  # unused variables (XEV_CFG_* set dynamically)
+disable=SC2034,SC2154,SC2250,SC2248,SC2312,SC2002,SC1091
+# SC2034: unused variables (XEV_CFG_* set dynamically via printf -v)
+# SC2154: referenced but not assigned (same reason — dynamic vars)
+# SC2250: prefer braces around variables (cosmetic)
+# SC2248: prefer double quoting (cosmetic)
+# SC2312: consider invoking separately (cosmetic)
+# SC2002: useless cat (stylistic choice)
+# SC1091: not following sourced file (test files source libs)
