@@ -1,0 +1,19 @@
+{
+  "name": "xev-evernote-marketplace",
+  "owner": {
+    "name": "Yaniv Golan",
+    "email": "yaniv@golan.name"
+  },
+  "metadata": {
+    "description": "Evernote access skill for AI agents — search, read, create, and update notes"
+  },
+  "plugins": [
+    {
+      "name": "xev-evernote",
+      "source": "./",
+      "description": "Access Evernote notes via xev-cli for searching, reading, creating, and updating notes",
+      "category": "productivity",
+      "tags": ["evernote", "notes", "search", "knowledge-base", "meeting-notes"]
+    }
+  ]
+}
