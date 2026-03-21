@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -uo pipefail
+XEV_CLI="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../xev-cli/bin" && pwd)/xev-cli"
 input="$(cat)"
 note_id="$(echo "$input" | jq -r '.note_id')"
 title="$(echo "$input" | jq -r '.title // empty')"
@@ -11,4 +12,4 @@ args=("$note_id")
 [[ -n "$content" ]] && args+=(--content "$content")
 [[ "$append" == "true" ]] && args+=(--append)
 
-xev-cli update "${args[@]}" 2>/dev/null
+"$XEV_CLI" update "${args[@]}" 2>/dev/null
