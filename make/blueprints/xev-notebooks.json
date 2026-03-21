@@ -1,0 +1,319 @@
+{
+  "name": "xev-notebooks",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "hook": {
+              "data": {
+                "editable": "true"
+              },
+              "label": "xev-webhook"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hook",
+            "type": "hook:gateway-webhook",
+            "label": "Webhook",
+            "required": true
+          },
+          {
+            "name": "maxResults",
+            "type": "number",
+            "label": "Maximum number of results"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "evernote:ActionSearchNote",
+      "version": 3,
+      "parameters": {
+        "account": null,
+        "continueWhenNoRes": false
+      },
+      "mapper": {
+        "tags": [],
+        "words": "*",
+        "maxResults": "20",
+        "notebookId": ""
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "notebookId": {
+              "label": "Empty"
+            }
+          },
+          "parameters": {
+            "account": {
+              "data": {
+                "scoped": "true",
+                "connection": "evernote"
+              },
+              "label": "Your Evernote connection"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "account",
+            "type": "account:evernote",
+            "label": "Connection",
+            "required": true
+          },
+          {
+            "name": "continueWhenNoRes",
+            "type": "boolean",
+            "label": "Continue the execution of the route even if the module returns no results",
+            "required": true
+          }
+        ],
+        "expect": [
+          {
+            "name": "words",
+            "type": "text",
+            "label": "Search query"
+          },
+          {
+            "name": "notebookId",
+            "type": "select",
+            "label": "Notebook"
+          },
+          {
+            "name": "tags",
+            "type": "select",
+            "label": "Tags",
+            "multiple": true
+          },
+          {
+            "name": "maxResults",
+            "type": "uinteger",
+            "label": "Maximum number of returned notes",
+            "required": true
+          }
+        ]
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "gateway:WebhookRespond",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "body": "{\"error_type\": \"{{2.error.type}}\", \"error_message\": \"{{2.error.message}}\", \"error_detail\": \"{{2.error.detail}}\"}",
+            "status": "200",
+            "headers": []
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 150
+            },
+            "restore": {
+              "expect": {
+                "headers": {
+                  "mode": "chose"
+                }
+              }
+            },
+            "expect": [
+              {
+                "name": "status",
+                "type": "uinteger",
+                "label": "Status",
+                "required": true,
+                "validate": {
+                  "min": 100
+                }
+              },
+              {
+                "name": "body",
+                "type": "any",
+                "label": "Body"
+              },
+              {
+                "name": "headers",
+                "spec": [
+                  {
+                    "name": "key",
+                    "type": "text",
+                    "label": "Key",
+                    "required": true,
+                    "validate": {
+                      "max": 256
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "type": "text",
+                    "label": "Value",
+                    "required": true,
+                    "validate": {
+                      "max": 4096
+                    }
+                  }
+                ],
+                "type": "array",
+                "label": "Custom headers",
+                "validate": {
+                  "maxItems": 16
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicAggregator",
+      "version": 1,
+      "parameters": {
+        "feeder": 2
+      },
+      "mapper": {
+        "id": "{{2.id}}",
+        "tags": "{{2.tags}}",
+        "text": "{{2.text}}",
+        "title": "{{2.title}}",
+        "tagIds": "{{2.tagIds}}",
+        "htmlText": "{{2.htmlText}}",
+        "noteLink": "{{2.noteLink}}",
+        "sourceUrl": "{{2.sourceUrl}}",
+        "notebookId": "{{2.notebookId}}",
+        "publicLink": "{{2.publicLink}}",
+        "attachments": "{{2.attachments}}",
+        "dateCreated": "{{2.dateCreated}}",
+        "dateUpdated": "{{2.dateUpdated}}",
+        "notebookName": "{{2.notebookName}}",
+        "reminderTime": "{{2.reminderTime}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": -150
+        },
+        "restore": {
+          "extra": {
+            "feeder": {
+              "label": "Evernote - Search for notes [2]"
+            },
+            "target": {
+              "label": "Custom"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "body": "{{3.array}}",
+        "status": "200",
+        "headers": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "headers": {
+              "mode": "chose"
+            }
+          }
+        },
+        "expect": [
+          {
+            "name": "status",
+            "type": "uinteger",
+            "label": "Status",
+            "required": true,
+            "validate": {
+              "min": 100
+            }
+          },
+          {
+            "name": "body",
+            "type": "any",
+            "label": "Body"
+          },
+          {
+            "name": "headers",
+            "spec": [
+              {
+                "name": "key",
+                "type": "text",
+                "label": "Key",
+                "required": true,
+                "validate": {
+                  "max": 256
+                }
+              },
+              {
+                "name": "value",
+                "type": "text",
+                "label": "Value",
+                "required": true,
+                "validate": {
+                  "max": 4096
+                }
+              }
+            ],
+            "type": "array",
+            "label": "Custom headers",
+            "validate": {
+              "maxItems": 16
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "YOUR_ZONE.make.com",
+    "notes": []
+  }
+}

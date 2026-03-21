@@ -1,0 +1,291 @@
+{
+  "name": "xev-get",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "hook": {
+              "data": {
+                "editable": "true"
+              },
+              "label": "xev-webhook"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hook",
+            "type": "hook:gateway-webhook",
+            "label": "Webhook",
+            "required": true
+          },
+          {
+            "name": "maxResults",
+            "type": "number",
+            "label": "Maximum number of results"
+          }
+        ],
+        "interface": [
+          {
+            "name": "note_id",
+            "type": "text"
+          },
+          {
+            "name": "__IMTHEADERS__",
+            "spec": [
+              {
+                "name": "name",
+                "type": "text",
+                "label": "Name"
+              },
+              {
+                "name": "value",
+                "type": "text",
+                "label": "Value"
+              }
+            ],
+            "type": "array",
+            "label": "Headers"
+          },
+          {
+            "name": "__IMTMETHOD__",
+            "type": "text",
+            "label": "Method"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "evernote:ActionGetNote",
+      "version": 3,
+      "parameters": {
+        "rpc": "norpc",
+        "account": null
+      },
+      "mapper": {
+        "id": "{{1.note_id}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "rpc": {
+              "label": "Enter ID manually"
+            },
+            "account": {
+              "data": {
+                "scoped": "true",
+                "connection": "evernote"
+              },
+              "label": "Your Evernote connection"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "account",
+            "type": "account:evernote",
+            "label": "Connection",
+            "required": true
+          },
+          {
+            "name": "rpc",
+            "type": "select",
+            "label": "Select a note",
+            "validate": {
+              "enum": [
+                "norpc",
+                "rpc"
+              ]
+            }
+          }
+        ],
+        "expect": [
+          {
+            "name": "id",
+            "type": "text",
+            "label": "Note ID",
+            "required": true
+          }
+        ]
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "gateway:WebhookRespond",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "body": "{\"error_type\": \"{{2.error.type}}\", \"error_message\": \"{{2.error.message}}\", \"error_detail\": \"{{2.error.detail}}\"}",
+            "status": "200",
+            "headers": []
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 150,
+              "name": "error response"
+            },
+            "restore": {
+              "expect": {
+                "headers": {
+                  "mode": "chose"
+                }
+              }
+            },
+            "expect": [
+              {
+                "name": "status",
+                "type": "uinteger",
+                "label": "Status",
+                "required": true,
+                "validate": {
+                  "min": 100
+                }
+              },
+              {
+                "name": "body",
+                "type": "any",
+                "label": "Body"
+              },
+              {
+                "name": "headers",
+                "spec": [
+                  {
+                    "name": "key",
+                    "type": "text",
+                    "label": "Key",
+                    "required": true,
+                    "validate": {
+                      "max": 256
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "type": "text",
+                    "label": "Value",
+                    "required": true,
+                    "validate": {
+                      "max": 4096
+                    }
+                  }
+                ],
+                "type": "array",
+                "label": "Custom headers",
+                "validate": {
+                  "maxItems": 16
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "body": "{{`2`}}",
+        "status": "200",
+        "headers": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": -150
+        },
+        "restore": {
+          "expect": {
+            "headers": {
+              "mode": "chose"
+            }
+          }
+        },
+        "expect": [
+          {
+            "name": "status",
+            "type": "uinteger",
+            "label": "Status",
+            "required": true,
+            "validate": {
+              "min": 100
+            }
+          },
+          {
+            "name": "body",
+            "type": "any",
+            "label": "Body"
+          },
+          {
+            "name": "headers",
+            "spec": [
+              {
+                "name": "key",
+                "type": "text",
+                "label": "Key",
+                "required": true,
+                "validate": {
+                  "max": 256
+                }
+              },
+              {
+                "name": "value",
+                "type": "text",
+                "label": "Value",
+                "required": true,
+                "validate": {
+                  "max": 4096
+                }
+              }
+            ],
+            "type": "array",
+            "label": "Custom headers",
+            "validate": {
+              "maxItems": 16
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "YOUR_ZONE.make.com",
+    "notes": []
+  }
+}
