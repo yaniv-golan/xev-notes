@@ -401,7 +401,7 @@ cmd_config() {
     show) cmd_config_show "$@" ;;
     check) cmd_config_check "$@" ;;
     path) xev_config_path ;;
-    *) echo "Usage: xev-cli config [setup|show|check|path]" >&2; exit 2 ;;
+    *) echo "Usage: xev-cli config [setup|setup --auto|show|check|path]" >&2; exit 2 ;;
   esac
 }
 
@@ -411,7 +411,7 @@ cmd_config_setup() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --profile) profile="$2"; shift 2 ;;
-      --auto) echo "Error: --auto is not yet implemented. Use manual setup." >&2; exit 2 ;;
+      --auto) cmd_config_setup_auto "$@"; return ;;
       *) xev_die_usage "Unknown argument: $1" ;;
     esac
   done
@@ -500,6 +500,201 @@ cmd_config_setup() {
     xev_load_config "$config_file"
     cmd_config_check --ping
   fi
+}
+
+cmd_config_setup_auto() {
+  local profile="${XEV_PROFILE:-default}"
+  local zone=""
+  local api_token=""
+  local team_id=""
+
+  # Parse remaining args after --auto was consumed
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --profile) profile="$2"; shift 2 ;;
+      --zone) zone="$2"; shift 2 ;;
+      --team-id) team_id="$2"; shift 2 ;;
+      *) xev_die_usage "Unknown argument: $1" ;;
+    esac
+  done
+
+  echo "xev-cli automatic setup"
+  echo ""
+
+  # Prompt for Make.com credentials
+  if [[ -z "$zone" ]]; then
+    read -rp "Make.com zone [eu2.make.com]: " zone
+    zone="${zone:-eu2.make.com}"
+  fi
+
+  read -rsp "Make.com API token (from https://${zone}/user/api): " api_token
+  echo ""
+  [[ -z "$api_token" ]] && { echo "Error: API token is required" >&2; exit 2; }
+
+  if [[ -z "$team_id" ]]; then
+    read -rp "Make.com team ID (from your Make.com URL): " team_id
+    [[ -z "$team_id" ]] && { echo "Error: Team ID is required" >&2; exit 2; }
+  fi
+
+  # Verify API token
+  echo "Verifying API access..."
+  local me_response
+  me_response=$(curl -s -H "Authorization: Token ${api_token}" "https://${zone}/api/v2/users/me")
+  if ! echo "$me_response" | jq -e '.authUser.name' >/dev/null 2>&1; then
+    echo "Error: API token verification failed. Check your token and zone." >&2
+    echo "Response: $(echo "$me_response" | head -c 200)" >&2
+    exit 2
+  fi
+  local user_name
+  user_name=$(echo "$me_response" | jq -r '.authUser.name')
+  echo "  Authenticated as: ${user_name}"
+
+  # Find blueprint files
+  local bp_dir=""
+  for dir in "${XEV_ROOT}/make/blueprints" "$(dirname "${BASH_SOURCE[0]}")/../../make/blueprints"; do
+    if [[ -d "$dir" ]]; then
+      bp_dir="$(cd "$dir" && pwd)"
+      break
+    fi
+  done
+  if [[ -z "$bp_dir" ]]; then
+    echo "Error: Blueprint directory not found. Expected make/blueprints/ in the repo." >&2
+    exit 2
+  fi
+  echo "  Blueprints: ${bp_dir}"
+
+  # Create scenarios
+  echo ""
+  echo "Creating scenarios..."
+  local scenarios="xev-search xev-get xev-notebooks xev-create xev-update xev-append"
+  local urls=""
+  local failed=0
+
+  for name in $scenarios; do
+    local bp_file="${bp_dir}/${name}.json"
+    if [[ ! -f "$bp_file" ]]; then
+      echo "  SKIP: ${name} (blueprint not found)"
+      failed=$((failed + 1))
+      continue
+    fi
+
+    # Create webhook hook
+    local hook_resp
+    hook_resp=$(curl -s -X POST -H "Authorization: Token ${api_token}" -H "Content-Type: application/json" \
+      "https://${zone}/api/v2/hooks" \
+      -d "{\"name\":\"${name}\",\"teamId\":${team_id},\"typeName\":\"gateway-webhook\",\"headers\":\"[]\",\"method\":\"POST\",\"stringify\":false}")
+    local hook_id
+    hook_id=$(echo "$hook_resp" | jq '.hook.id // empty')
+    local hook_url
+    hook_url=$(echo "$hook_resp" | jq -r '.hook.url // empty')
+
+    if [[ -z "$hook_id" ]]; then
+      echo "  FAIL: ${name} — hook creation failed: $(echo "$hook_resp" | jq -r '.detail // .message // "unknown error"')"
+      failed=$((failed + 1))
+      continue
+    fi
+
+    # Inject hook ID into blueprint
+    local bp_with_hook
+    bp_with_hook=$(jq --argjson hid "$hook_id" \
+      '.flow[0].parameters.hook = $hid | .flow[0].metadata.restore.parameters.hook.label = .name' \
+      "$bp_file")
+
+    # Create scenario with "immediately" scheduling
+    local bp_str
+    bp_str=$(echo "$bp_with_hook" | jq -c '.' | jq -Rs '.')
+    local create_payload
+    create_payload=$(jq -n --argjson bp "$bp_str" --arg n "$name" --argjson tid "$team_id" \
+      '{teamId: $tid, blueprint: $bp, scheduling: "{\"type\":\"immediately\"}", name: $n}')
+
+    local sc_resp
+    sc_resp=$(curl -s -X POST -H "Authorization: Token ${api_token}" -H "Content-Type: application/json" \
+      "https://${zone}/api/v2/scenarios?confirmed=true" -d "$create_payload")
+    local sc_id
+    sc_id=$(echo "$sc_resp" | jq '.scenario.id // empty')
+
+    if [[ -z "$sc_id" ]]; then
+      echo "  FAIL: ${name} — scenario creation failed: $(echo "$sc_resp" | jq -r '.detail // .message // "unknown error"')"
+      failed=$((failed + 1))
+      continue
+    fi
+
+    echo "  OK: ${name} (scenario ${sc_id}, webhook ${hook_url})"
+
+    # Collect URLs for config
+    local key
+    key=$(echo "$name" | sed 's/xev-//' | tr '-' '_')
+    urls="${urls}${key}=${hook_url}\n"
+
+    # Try to activate (may fail due to org restrictions)
+    local start_resp
+    start_resp=$(curl -s -X POST -H "Authorization: Token ${api_token}" \
+      "https://${zone}/api/v2/scenarios/${sc_id}/start" 2>/dev/null)
+    if echo "$start_resp" | jq -e '.scenario' >/dev/null 2>&1; then
+      echo "       Activated"
+    fi
+  done
+
+  if [[ $failed -gt 0 ]]; then
+    echo ""
+    echo "Warning: ${failed} scenario(s) failed to create."
+  fi
+
+  # Extract URLs and write config
+  local url_search url_get url_notebooks url_create url_update url_append
+  url_search=$(echo -e "$urls" | grep '^search=' | cut -d= -f2)
+  url_get=$(echo -e "$urls" | grep '^get=' | cut -d= -f2)
+  url_notebooks=$(echo -e "$urls" | grep '^notebooks=' | cut -d= -f2)
+  url_create=$(echo -e "$urls" | grep '^create=' | cut -d= -f2)
+  url_update=$(echo -e "$urls" | grep '^update=' | cut -d= -f2)
+  url_append=$(echo -e "$urls" | grep '^append=' | cut -d= -f2)
+
+  # Write config
+  local config_file
+  config_file="$(xev_config_path)"
+  local config_dir
+  config_dir="$(dirname "$config_file")"
+  mkdir -p "$config_dir"
+
+  local section
+  if [[ "$profile" == "default" ]]; then
+    section="[default]"
+  else
+    section="[profiles.${profile}]"
+  fi
+
+  cat > "$config_file" <<TOML
+${section}
+make_zone = "${zone}"
+webhook_api_key = ""
+webhook_search = "${url_search}"
+webhook_get = "${url_get}"
+webhook_notebooks = "${url_notebooks}"
+webhook_create = "${url_create}"
+webhook_update = "${url_update}"
+webhook_append = "${url_append}"
+webhook_get_attachment = ""
+TOML
+
+  chmod 600 "$config_file"
+  echo ""
+  echo "Config written to ${config_file}"
+
+  # Print remaining manual steps
+  echo ""
+  echo "========================================="
+  echo "REMAINING MANUAL STEPS (in Make.com UI):"
+  echo "========================================="
+  echo ""
+  echo "1. Open each xev-* scenario in Make.com"
+  echo "2. Click the Evernote module (green circle)"
+  echo "3. Select your Evernote connection from the dropdown"
+  echo "4. Save the scenario"
+  echo "5. Activate the scenario (toggle ON at top right)"
+  echo ""
+  echo "Then verify:"
+  echo "  xev-cli config check"
+  echo "  xev-cli search \"test\" --limit 3 --output human"
 }
 
 cmd_config_show() {
