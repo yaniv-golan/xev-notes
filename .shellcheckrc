@@ -1,0 +1,3 @@
+shell=bash
+enable=all
+disable=SC2034  # unused variables (XEV_CFG_* set dynamically)

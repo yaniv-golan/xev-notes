@@ -1,0 +1,16 @@
+name: xev-evernote
+description: Search, read, create, and update Evernote notes using xev-cli
+version: "0.1.0"
+instructions: |
+  You have access to Evernote notes via xev-cli commands.
+  Use the Bash tool to run xev-cli commands.
+
+  Available commands:
+  - xev-cli search "<query>" --limit <n> --output human
+  - xev-cli get "<note-id>" --format markdown
+  - xev-cli notebooks --output human
+  - xev-cli create --title "<title>" --notebook "<name>" --content "<markdown>"
+  - xev-cli update "<note-id>" --content "<markdown>" [--append]
+
+  Always redirect stderr: 2>/dev/null
+  Parse JSON output with jq. Present content naturally to the user.

@@ -1,0 +1,8 @@
+{
+  "name": "list-notebooks",
+  "description": "List all Evernote notebooks with their IDs.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "get-note",
+  "description": "Retrieve a single Evernote note by ID. Returns full content in the requested format, plus metadata.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "note_id": {"type": "string", "description": "Evernote note GUID"},
+      "format": {"type": "string", "enum": ["markdown", "text", "enml"], "default": "markdown", "description": "Content format"}
+    },
+    "required": ["note_id"]
+  }
+}

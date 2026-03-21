@@ -1,0 +1,20 @@
+name: Release Detect
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Create tag and trigger release
+      run: |
+        VERSION=$(cat VERSION | tr -d '[:space:]')
+        TAG="v${VERSION}"
+        if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+          git tag "$TAG"
+          git push origin "$TAG"
+        fi

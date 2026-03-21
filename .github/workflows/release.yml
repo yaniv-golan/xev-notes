@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract release notes
+      run: |
+        VERSION=$(cat VERSION | tr -d '[:space:]')
+        awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{if(found) exit} found" \
+          CHANGELOG.md > RELEASE_NOTES.md
+        if [ ! -s RELEASE_NOTES.md ]; then
+          echo "Release ${VERSION}" > RELEASE_NOTES.md
+        fi
+
+    - name: Build release archive
+      run: |
+        VERSION=$(cat VERSION | tr -d '[:space:]')
+        zip -r "xev-${VERSION}.zip" \
+          xev-cli/bin/ xev-cli/lib/ \
+          xev-mcp/ skills/ make/ \
+          .claude-plugin/ .cursor-plugin/ \
+          VERSION LICENSE README.md
+        sha256sum "xev-${VERSION}.zip" > "xev-${VERSION}.zip.sha256"
+
+    - uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          xev-*.zip
+          xev-*.sha256
+        body_path: RELEASE_NOTES.md

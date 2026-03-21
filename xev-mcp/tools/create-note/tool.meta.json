@@ -1,0 +1,13 @@
+{
+  "name": "create-note",
+  "description": "Create a new Evernote note. Content should be provided as markdown.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string", "description": "Note title"},
+      "notebook": {"type": "string", "description": "Target notebook name"},
+      "content": {"type": "string", "description": "Note content in markdown"}
+    },
+    "required": ["title", "notebook"]
+  }
+}

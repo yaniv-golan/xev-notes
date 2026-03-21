@@ -1,0 +1,14 @@
+{
+  "name": "update-note",
+  "description": "Update an existing Evernote note. Provide new title and/or content.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "note_id": {"type": "string", "description": "Evernote note GUID"},
+      "title": {"type": "string", "description": "New title (omit to keep current)"},
+      "content": {"type": "string", "description": "New content in markdown"},
+      "append": {"type": "boolean", "default": false, "description": "Append content instead of replacing"}
+    },
+    "required": ["note_id"]
+  }
+}
