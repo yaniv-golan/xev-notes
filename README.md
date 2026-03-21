@@ -11,7 +11,7 @@ Evernote no longer issues new API keys. This project uses Make.com as an authori
 ### 1. Install
 
 ```bash
-git clone https://github.com/yaniv-golan/evernote-mcp.git
+git clone https://github.com/yaniv-golan/xev-notes.git
 cd evernote-mcp
 ```
 
@@ -57,7 +57,7 @@ See [docs/make-com-setup.md](docs/make-com-setup.md) for detailed instructions.
 Install as a plugin:
 
 ```
-/install-plugin https://github.com/yaniv-golan/evernote-mcp
+/install-plugin https://github.com/yaniv-golan/xev-notes
 ```
 
 Then ask Claude: *"Search my Evernote for meeting notes about Q4 planning"*
