@@ -76,9 +76,9 @@ After importing, each scenario needs 3 things configured: the Evernote connectio
 
 This is critical — without this, webhooks queue data instead of responding synchronously.
 
-1. Look at the bottom toolbar — you should see a scheduling toggle
-2. Make sure it says **"Immediately as data arrives"** (not "On demand")
-3. If it says "On demand", toggle it until it shows "Immediately"
+1. Click **Options** (top right of the scenario page) → **Scheduling**
+2. Set it to **"Immediately as data arrives"**
+3. Save
 
 ### 3d. Determine Webhook Data Structure
 
@@ -262,7 +262,7 @@ It will prompt for:
 ### "Accepted" response / TIMEOUT error
 
 The scenario is queuing data instead of processing immediately. Fix the scheduling:
-- Open the scenario → check that the bottom toolbar shows **"Immediately as data arrives"**
+- Open the scenario → **Options** (top right) → **Scheduling** → set to **"Immediately as data arrives"**
 - Deactivate and reactivate the scenario
 
 ### "Scenario failed to complete" / HTTP 500
