@@ -18,8 +18,8 @@ xev_enml_to_markdown() {
   sed 's/<?xml[^?]*?>//' | \
   sed 's/<!DOCTYPE[^>]*>//' | \
   sed 's/<en-note>//g; s/<\/en-note>//g' | \
-  sed -E 's/<en-todo checked="true"\/>/- [x] /g' | \
-  sed -E 's/<en-todo checked="false"\/>/- [ ] /g' | \
+  sed -E 's/<en-todo checked="true"\/>/XEVCHK1 /g' | \
+  sed -E 's/<en-todo checked="false"\/>/XEVCHK0 /g' | \
   sed -E 's/<en-media[^>]*type="([^"]*)"[^>]*\/>/\n[Attachment: \1]\n/g' | \
   sed 's/<en-crypt>[^<]*<\/en-crypt>/[Encrypted content]/g' | \
   perl -0pe 's/<div[^>]*display\s*:\s*none[^>]*>.*?<\/div>//gs' | \
@@ -33,8 +33,7 @@ xev_enml_to_markdown() {
   sed 's/\\\$/$/g' | \
   sed 's/\\\|/|/g' | \
   sed -E 's/\[([^]]*)\]\{\.underline\}/__\1__/g' | \
-  sed 's/\\- \\\[x\\\]/- [x]/g; s/\\- \\\[ \\\]/- [ ]/g' | \
-  sed 's/\\\[x\\\]/[x]/g; s/\\\[ \\\]/[ ]/g'
+  sed 's/XEVCHK1/- [x]/g; s/XEVCHK0/- [ ]/g'
 }
 
 # Convert ENML to plain text (strip all tags)
