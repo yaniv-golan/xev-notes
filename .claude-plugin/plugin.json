@@ -1,0 +1,11 @@
+{
+  "name": "xev-evernote",
+  "version": "0.1.0",
+  "description": "Access Evernote notes via xev-cli for searching, reading, creating, and updating notes.",
+  "author": {
+    "name": "Yaniv Golan"
+  },
+  "license": "MIT",
+  "keywords": ["evernote", "notes", "search", "knowledge-base"],
+  "skills": "./skills"
+}
