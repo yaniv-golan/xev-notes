@@ -10,7 +10,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: ludeeus/action-shellcheck@master
       with:
         scandir: './xev-cli'
@@ -22,7 +22,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install dependencies
       run: |
         if [[ "$RUNNER_OS" == "Linux" ]]; then
@@ -37,7 +37,7 @@ jobs:
   mcp-validate:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Validate MCP tool schemas
       run: |
         for f in xev-mcp/tools/*/tool.meta.json; do
@@ -50,7 +50,7 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Check version consistency
       run: |
         V=$(cat VERSION | tr -d '[:space:]')
