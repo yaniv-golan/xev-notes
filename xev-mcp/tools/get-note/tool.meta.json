@@ -5,7 +5,8 @@
     "type": "object",
     "properties": {
       "note_id": {"type": "string", "description": "Evernote note GUID"},
-      "format": {"type": "string", "enum": ["markdown", "text", "enml"], "default": "markdown", "description": "Content format"}
+      "format": {"type": "string", "enum": ["markdown", "text", "enml"], "default": "markdown", "description": "Content format"},
+      "download_attachments": {"type": "boolean", "default": false, "description": "Download attachments to a local directory"}
     },
     "required": ["note_id"]
   }

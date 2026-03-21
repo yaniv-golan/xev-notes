@@ -3,5 +3,9 @@ set -uo pipefail
 input="$(cat)"
 note_id="$(echo "$input" | jq -r '.note_id')"
 format="$(echo "$input" | jq -r '.format // "markdown"')"
+download="$(echo "$input" | jq -r '.download_attachments // false')"
 
-xev-cli get "$note_id" --format "$format" 2>/dev/null
+args=("$note_id" --format "$format")
+[[ "$download" == "true" ]] && args+=(--download-attachments)
+
+xev-cli get "${args[@]}" 2>/dev/null

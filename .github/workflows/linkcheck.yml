@@ -1,0 +1,15 @@
+name: Link Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: lycheeverse/lychee-action@v2
+      with:
+        args: --verbose --no-progress '*.md' 'docs/**/*.md' 'skills/**/*.md'
+        fail: true

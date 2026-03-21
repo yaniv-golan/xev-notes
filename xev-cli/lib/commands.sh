@@ -282,12 +282,17 @@ cmd_create() {
     exit 2
   fi
 
-  # Resolve notebook name to GUID
-  xev_progress "Resolving notebook..."
+  # Resolve notebook name to GUID (with session cache)
   local nb_response
-  xev_webhook_call "$XEV_CFG_WEBHOOK_NOTEBOOKS" '{}' "Looking up notebook..." || xev_die_from_response
-  local nb_response="$XEV_RESPONSE"
-  # Case-insensitive notebook name resolution (per spec)
+  local nb_cache="/tmp/xev-notebooks-cache-${UID:-0}.json"
+  if [[ -f "$nb_cache" ]] && [[ $(( $(date +%s) - $(stat -f %m "$nb_cache" 2>/dev/null || stat -c %Y "$nb_cache" 2>/dev/null || echo 0) )) -lt 300 ]]; then
+    nb_response=$(cat "$nb_cache")
+  else
+    xev_progress "Resolving notebook..."
+    xev_webhook_call "$XEV_CFG_WEBHOOK_NOTEBOOKS" '{}' "Looking up notebook..." || xev_die_from_response
+    nb_response="$XEV_RESPONSE"
+    echo "$nb_response" > "$nb_cache"
+  fi
   local notebook_id
   notebook_id=$(echo "$nb_response" | jq -r --arg name "$notebook" \
     '[.[] | select((.["Notebook name"] // .notebookName // .notebook_name // "") | ascii_downcase == ($name | ascii_downcase))] | .[0]["Notebook ID"] // .[0].notebookId // .[0].notebook_id // empty')
