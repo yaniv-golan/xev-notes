@@ -36,6 +36,9 @@ jobs:
       shell: bash
     - name: Run tests
       run: bash xev-cli/test/run_tests.sh
+      env:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
 
   mcp-validate:
     runs-on: ubuntu-latest
