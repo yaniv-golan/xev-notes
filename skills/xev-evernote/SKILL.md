@@ -14,23 +14,32 @@ Search, read, create, and update Evernote notes via xev-cli.
 
 ## Prerequisites
 
-Silently verify xev-cli is configured:
+First, resolve the xev-cli path. When installed as a plugin, use `${CLAUDE_PLUGIN_ROOT}`:
 
 ```bash
-xev-cli config check 2>/dev/null
+XEV_CLI="${CLAUDE_PLUGIN_ROOT}/xev-cli/bin/xev-cli"
+[[ -x "$XEV_CLI" ]] && echo "FOUND" || echo "NOT_FOUND"
 ```
 
-If this fails, tell the user: "xev-cli is not configured. Run `xev-cli config setup --auto` to set up Make.com integration, or see the setup guide at `docs/make-com-setup.md`."
-
-If `xev-cli` is not found on PATH, check common locations:
+If `CLAUDE_PLUGIN_ROOT` is not set or xev-cli not found there, try common locations:
 
 ```bash
 for p in ./xev-cli/bin/xev-cli ~/Documents/code/evernote-mcp/xev-cli/bin/xev-cli; do
-  [[ -x "$p" ]] && echo "FOUND:$p" && break
+  [[ -x "$p" ]] && XEV_CLI="$p" && echo "FOUND:$p" && break
 done
 ```
 
-Use the found path for all subsequent commands. If not found, tell the user to install xev-cli.
+If not found, tell the user to install xev-cli.
+
+**IMPORTANT:** Use `$XEV_CLI` (the resolved path) instead of bare `xev-cli` in ALL commands below.
+
+Then verify configuration:
+
+```bash
+"$XEV_CLI" config check 2>/dev/null
+```
+
+If this fails, tell the user: "xev-cli is not configured. Run `$XEV_CLI config setup --auto` to set up Make.com integration, or see the setup guide at `docs/make-com-setup.md`."
 
 ## Workflow: Finding Information
 
@@ -39,12 +48,12 @@ Use this when the user asks to find, search, or read notes.
 ### Step 1: Search
 
 ```bash
-xev-cli search "<query>" --limit 10 --output human 2>/dev/null
+"$XEV_CLI" search "<query>" --limit 10 --output human 2>/dev/null
 ```
 
 For notebook-specific searches:
 ```bash
-xev-cli search "<query>" --notebook "<name>" --limit 10 --output human 2>/dev/null
+"$XEV_CLI" search "<query>" --notebook "<name>" --limit 10 --output human 2>/dev/null
 ```
 
 Present results as a clean list — **never dump raw JSON to the user**. Summarize: title, notebook, date.
@@ -56,12 +65,12 @@ If no results, suggest broadening the query or trying different keywords.
 When the user picks a note (or you need its content):
 
 ```bash
-xev-cli get "<note-id>" --format markdown 2>/dev/null | jq -r '.data.content' 2>/dev/null
+"$XEV_CLI" get "<note-id>" --format markdown 2>/dev/null | jq -r '.data.content' 2>/dev/null
 ```
 
 To get metadata alongside content:
 ```bash
-xev-cli get "<note-id>" --format markdown 2>/dev/null | jq '{title: .data.title, notebook: .data.notebook, updated: .data.updated, content: .data.content}' 2>/dev/null
+"$XEV_CLI" get "<note-id>" --format markdown 2>/dev/null | jq '{title: .data.title, notebook: .data.notebook, updated: .data.updated, content: .data.content}' 2>/dev/null
 ```
 
 Present the content naturally — format it, summarize if long, highlight what the user asked about.
@@ -71,7 +80,7 @@ Present the content naturally — format it, summarize if long, highlight what t
 If the user needs to know what notebooks exist:
 
 ```bash
-xev-cli notebooks --output human 2>/dev/null
+"$XEV_CLI" notebooks --output human 2>/dev/null
 ```
 
 ## Workflow: Creating Notes
@@ -88,7 +97,7 @@ Before creating, confirm with the user:
 ### Step 2: Create
 
 ```bash
-xev-cli create --title "<title>" --notebook "<notebook-name>" --content "<markdown content>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content "<markdown content>" 2>/dev/null | jq '.' 2>/dev/null
 ```
 
 For multi-line content, use `--content-file`:
@@ -98,7 +107,7 @@ cat > /tmp/xev-note-content.md << 'NOTEOF'
 
 Content here...
 NOTEOF
-xev-cli create --title "<title>" --notebook "<notebook-name>" --content-file /tmp/xev-note-content.md 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content-file /tmp/xev-note-content.md 2>/dev/null | jq '.' 2>/dev/null
 rm -f /tmp/xev-note-content.md
 ```
 
@@ -108,17 +117,17 @@ Report the created note ID back to the user.
 
 ### Replace content:
 ```bash
-xev-cli update "<note-id>" --content "<new markdown content>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --content "<new markdown content>" 2>/dev/null | jq '.' 2>/dev/null
 ```
 
 ### Append to existing note:
 ```bash
-xev-cli update "<note-id>" --append --content "<content to add>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --append --content "<content to add>" 2>/dev/null | jq '.' 2>/dev/null
 ```
 
 ### Update title only:
 ```bash
-xev-cli update "<note-id>" --title "<new title>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --title "<new title>" 2>/dev/null | jq '.' 2>/dev/null
 ```
 
 ## Output Handling
@@ -134,7 +143,7 @@ xev-cli update "<note-id>" --title "<new title>" 2>/dev/null | jq '.' 2>/dev/nul
 Check for errors in JSON responses:
 
 ```bash
-result=$(xev-cli search "query" 2>/dev/null)
+result=$("$XEV_CLI" search "query" 2>/dev/null)
 if echo "$result" | jq -e '.ok == false' >/dev/null 2>&1; then
   error_code=$(echo "$result" | jq -r '.error.code')
   error_msg=$(echo "$result" | jq -r '.error.message')
@@ -146,8 +155,8 @@ fi
 | RATE_LIMITED | Evernote API rate limit | Wait the specified seconds, then retry |
 | TIMEOUT | Make.com scenario timed out | Retry once. If persistent, check Make.com. |
 | EVERNOTE_ERROR | Evernote rejected the request | Check note ID, notebook name, or content format |
-| NOT_FOUND | Note or notebook not found | Verify the ID. Run `xev-cli notebooks` to list notebooks. |
-| CONFIG_ERROR | xev-cli not configured | Run `xev-cli config setup --auto` |
+| NOT_FOUND | Note or notebook not found | Verify the ID. Run `"$XEV_CLI" notebooks` to list notebooks. |
+| CONFIG_ERROR | xev-cli not configured | Run `"$XEV_CLI" config setup --auto` |
 | AUTH_FAILED | Webhook URL invalid | Webhook URLs may have changed. Reconfigure. |
 
 For RATE_LIMITED errors, tell the user how long to wait and offer to retry.
@@ -155,18 +164,18 @@ For RATE_LIMITED errors, tell the user how long to wait and offer to retry.
 ## Examples
 
 **User: "Find my notes about the Viewz meeting"**
-1. `xev-cli search "Viewz meeting" --limit 5 --output human`
+1. `"$XEV_CLI" search "Viewz meeting" --limit 5 --output human`
 2. Present results: "I found 3 notes about Viewz meetings..."
-3. If user wants details → `xev-cli get <id> --format markdown`
+3. If user wants details → `"$XEV_CLI" get <id> --format markdown`
 
 **User: "Save these action items to Evernote"**
 1. Ask which notebook
-2. `xev-cli create --title "Action Items - 2026-03-21" --notebook "Work" --content "..."`
+2. `"$XEV_CLI" create --title "Action Items - 2026-03-21" --notebook "Work" --content "..."`
 3. "Created note 'Action Items - 2026-03-21' in Work notebook."
 
 **User: "Add a note to my meeting notes from today"**
-1. `xev-cli search "meeting" --limit 5` to find today's note
-2. `xev-cli update <id> --append --content "## Follow-up\n- Item 1\n- Item 2"`
+1. `"$XEV_CLI" search "meeting" --limit 5` to find today's note
+2. `"$XEV_CLI" update <id> --append --content "## Follow-up\n- Item 1\n- Item 2"`
 3. "Added follow-up items to your meeting notes."
 
 ## Reference
