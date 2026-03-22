@@ -26,7 +26,10 @@ jobs:
     - name: Install dependencies
       run: |
         if [[ "$RUNNER_OS" == "Linux" ]]; then
-          sudo apt-get update && sudo apt-get install -y jq pandoc
+          sudo apt-get update && sudo apt-get install -y jq
+          # Install recent pandoc (apt version is too old for GFM support)
+          curl -sL https://github.com/jgm/pandoc/releases/download/3.6.4/pandoc-3.6.4-1-amd64.deb -o /tmp/pandoc.deb
+          sudo dpkg -i /tmp/pandoc.deb
         elif [[ "$RUNNER_OS" == "macOS" ]]; then
           brew install jq pandoc
         fi
