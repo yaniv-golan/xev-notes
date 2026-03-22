@@ -23,11 +23,7 @@ result=$(echo "$enml" | xev_enml_to_markdown)
 if [[ "$result" == *"[x]"* ]] && [[ "$result" == *"[ ]"* ]]; then
   echo "  OK: en-todo checkbox conversion"
 else
-  echo "  FAIL: en-todo not converted"
-  echo "  DEBUG result hex: $(echo -n "$result" | xxd | head -3)"
-  echo "  DEBUG pandoc version: $(pandoc --version | head -1)"
-  echo "  DEBUG pre-pandoc: $(echo "$enml" | sed 's/<en-note>//g; s/<\/en-note>//g' | sed -E 's/<en-todo checked="true"\/>/XEVCHK1 /g' | sed -E 's/<en-todo checked="false"\/>/XEVCHK0 /g')"
-  echo "  DEBUG post-pandoc: $(echo "$enml" | sed 's/<en-note>//g; s/<\/en-note>//g' | sed -E 's/<en-todo checked="true"\/>/XEVCHK1 /g' | sed -E 's/<en-todo checked="false"\/>/XEVCHK0 /g' | pandoc -f html -t gfm 2>/dev/null | head -3)"
+  echo "  FAIL: en-todo not converted: $result"
   ERRORS=$((ERRORS + 1))
 fi
 

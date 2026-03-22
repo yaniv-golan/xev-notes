@@ -31,7 +31,7 @@ xev_enml_to_markdown() {
   sed -E 's/<span[^>]*>//g; s/<\/span>//g' | \
   pandoc -f html -t gfm --wrap=auto 2>/dev/null | \
   sed 's/\\\$/$/g' | \
-  sed 's/\\\|/|/g' | \
+  sed 's/\\|/|/g' | \
   sed -E 's/\[([^]]*)\]\{\.underline\}/__\1__/g' | \
   sed 's/XEVCHK1/- [x]/g; s/XEVCHK0/- [ ]/g'
 }
