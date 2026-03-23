@@ -14,32 +14,53 @@ Search, read, create, and update Evernote notes via xev-cli.
 
 ## Prerequisites
 
-First, resolve the xev-cli path. When installed as a plugin, use `${CLAUDE_PLUGIN_ROOT}`:
+### Find xev-cli
+
+When installed as a plugin, xev-cli is on PATH (set by the SessionStart hook). Verify:
 
 ```bash
-XEV_CLI="${CLAUDE_PLUGIN_ROOT}/xev-cli/bin/xev-cli"
+command -v xev-cli >/dev/null && echo "FOUND" || echo "NOT_FOUND"
+```
+
+If not on PATH, try the plugin root:
+
+```bash
+XEV_CLI="${CLAUDE_PLUGIN_ROOT:-}/xev-cli/bin/xev-cli"
 [[ -x "$XEV_CLI" ]] && echo "FOUND" || echo "NOT_FOUND"
 ```
 
-If `CLAUDE_PLUGIN_ROOT` is not set or xev-cli not found there, try common locations:
+If still not found, check common locations:
 
 ```bash
 for p in ./xev-cli/bin/xev-cli ~/Documents/code/evernote-mcp/xev-cli/bin/xev-cli; do
-  [[ -x "$p" ]] && XEV_CLI="$p" && echo "FOUND:$p" && break
+  [[ -x "$p" ]] && echo "FOUND:$p" && break
 done
 ```
 
-If not found, tell the user to install xev-cli.
+Use the found path for all commands. If `xev-cli` is on PATH, use it directly. Otherwise use `"$XEV_CLI"`.
 
-**IMPORTANT:** Use `$XEV_CLI` (the resolved path) instead of bare `xev-cli` in ALL commands below.
-
-Then verify configuration:
+### Verify configuration
 
 ```bash
-"$XEV_CLI" config check 2>/dev/null
+xev-cli config check 2>/dev/null
 ```
 
-If this fails, tell the user: "xev-cli is not configured. Run `$XEV_CLI config setup --auto` to set up Make.com integration, or see the setup guide at `docs/make-com-setup.md`."
+**If this succeeds** — you're ready to go. Proceed to the workflows below.
+
+**If this fails** — the Make.com webhooks are not configured. Tell the user:
+
+> "xev-cli needs Make.com webhook URLs to connect to Evernote. You have two options:
+> 1. **Recommended:** Create a `.env` file with `MAKE_API_KEY` and `MAKE_TEAM_ID`, then set `XEV_DOTENV_DIR` to the directory containing it. xev-cli will auto-discover webhook URLs.
+> 2. **Manual:** Run `xev-cli config setup --auto` from a terminal with Make.com credentials."
+
+### IMPORTANT: Do NOT run `config setup --auto` automatically
+
+**NEVER run `xev-cli config setup --auto` without explicit user instruction.** This command creates new Make.com scenarios, which:
+- Costs Make.com operations credits
+- Creates duplicate scenarios if run multiple times
+- Requires the user to manually connect Evernote and activate each scenario in the Make.com UI afterward
+
+If configuration fails, **always ask the user** what to do rather than attempting auto-setup. The most common fix is ensuring the `.env` file is accessible (mounted folder in Cowork, or `XEV_DOTENV_DIR` set).
 
 ## Workflow: Finding Information
 
