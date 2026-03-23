@@ -1,6 +1,6 @@
 name: xev-evernote
 description: Search, read, create, and update Evernote notes using xev-cli
-version: "0.2.1"
+version: "0.2.2"
 instructions: |
   You have access to Evernote notes via xev-cli commands.
   Use the Bash tool to run xev-cli commands.
