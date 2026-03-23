@@ -4,7 +4,7 @@
 # and we handle those explicitly rather than exiting on every failure
 set -uo pipefail
 
-XEV_VERSION="0.2.2"
+XEV_VERSION="0.2.3"
 XEV_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Source libraries

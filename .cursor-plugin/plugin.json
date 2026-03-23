@@ -1,6 +1,6 @@
 {
   "name": "xev-evernote",
   "displayName": "Evernote Access",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Access Evernote notes via xev-cli."
 }
