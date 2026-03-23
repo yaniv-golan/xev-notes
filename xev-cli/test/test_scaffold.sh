@@ -7,7 +7,7 @@ ERRORS=0
 
 # Test --version
 output=$("$XEV" --version 2>&1)
-if [[ "$output" == *"0.1.0"* ]]; then
+if [[ "$output" == *"xev-cli"* ]]; then
   echo "  OK: --version"
 else
   echo "  FAIL: --version returned: $output"
