@@ -35,12 +35,25 @@ xev_discover_hooks() {
       return 1  # API call failed or returned unexpected payload
     fi
 
-    # Filter xev-* hooks, deduplicate by picking highest ID per name
-    hooks_json=$(echo "$hooks_json" | jq '[
+    # Filter to exact xev-* hook names, prefer hooks linked to scenarios
+    local all_xev_hooks
+    all_xev_hooks=$(echo "$hooks_json" | jq '[
       .hooks[]
-      | select(.name | startswith("xev-"))
-      | {name, url, id}
-    ] | group_by(.name) | map(sort_by(.id) | last)')
+      | select(.name | test("^xev-(search|get|notebooks|create|update|append)$"))
+      | {name, url, id, linked: ((.data.scenarioId // .scenarioId // null) != null)}
+    ]')
+
+    # Try linked hooks first (those attached to active scenarios)
+    hooks_json=$(echo "$all_xev_hooks" | jq '[
+      [.[] | select(.linked)] | group_by(.name) | map(sort_by(.id) | last)
+    ] | flatten')
+
+    # Fall back to all hooks if no linked ones found
+    if [[ $(echo "$hooks_json" | jq 'length') -eq 0 ]]; then
+      hooks_json=$(echo "$all_xev_hooks" | jq '[
+        group_by(.name) | map(sort_by(.id) | last)
+      ] | flatten')
+    fi
 
     echo "$hooks_json" > "$cache"
   fi

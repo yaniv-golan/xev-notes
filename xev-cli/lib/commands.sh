@@ -416,7 +416,7 @@ cmd_config_setup() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --profile) profile="$2"; shift 2 ;;
-      --auto) cmd_config_setup_auto "$@"; return ;;
+      --auto) shift; cmd_config_setup_auto "$@"; return ;;
       *) xev_die_usage "Unknown argument: $1" ;;
     esac
   done
