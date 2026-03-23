@@ -12,189 +12,154 @@ metadata:
 
 Search, read, create, and update Evernote notes via xev-cli.
 
-## Prerequisites
+**Before using any command**, read `references/search-grammar.md` for Evernote search syntax and `references/error-codes.md` for error recovery.
 
-### Find xev-cli
+## Setup (run once per session)
 
-Search for xev-cli in known locations:
+Each Bash call is a fresh shell. Variables don't persist. Run this setup block first to create a helper script that persists across calls:
 
 ```bash
+# Find xev-cli
 XEV=""
 for p in \
   "$(command -v xev-cli 2>/dev/null)" \
-  "$(find /sessions/*/mnt/.local-plugins/cache/xev-evernote-marketplace -name xev-cli -path '*/bin/*' 2>/dev/null | head -1)" \
+  "$(find /sessions/*/mnt/.local-plugins/cache/xev-evernote* -name xev-cli -path '*/bin/*' 2>/dev/null | head -1)" \
   "${CLAUDE_PLUGIN_ROOT:-}/xev-cli/bin/xev-cli" \
-  ./xev-cli/bin/xev-cli \
-  ~/Documents/code/evernote-mcp/xev-cli/bin/xev-cli; do
+  ./xev-cli/bin/xev-cli; do
   [[ -n "$p" && -x "$p" ]] && XEV="$p" && break
 done
-[[ -n "$XEV" ]] && echo "FOUND: $XEV" || echo "NOT_FOUND"
-```
 
-If not found, tell the user to install the plugin or clone the repo.
-
-**IMPORTANT:** Use `"$XEV"` (the resolved path) for ALL commands below. Global flags like `--progress` go BEFORE the subcommand.
-
-### Find .env for auto-discovery
-
-xev-cli can auto-discover Make.com webhook URLs if `MAKE_API_KEY` and `MAKE_TEAM_ID` are available. Set `XEV_DOTENV_DIR` to the directory containing `.env`:
-
-```bash
-# Find .env in mounted folders (Cowork) or current project
-for d in /Users/yaniv/Documents/code/evernote-mcp ./mnt/evernote-mcp "$PWD"; do
-  [[ -f "$d/.env" ]] && grep -q MAKE_API_KEY "$d/.env" 2>/dev/null && export XEV_DOTENV_DIR="$d" && break
+# Find .env with Make.com credentials
+DOTENV=""
+for d in ./mnt/[^.]*; do
+  [[ -d "$d" && "$(basename "$d")" != "uploads" && -f "$d/.env" ]] && \
+    grep -q MAKE_API_KEY "$d/.env" 2>/dev/null && DOTENV="$d" && break
 done
-echo "XEV_DOTENV_DIR=${XEV_DOTENV_DIR:-NOT_SET}"
+[[ -z "$DOTENV" ]] && for d in "$PWD" "$HOME"; do
+  [[ -f "$d/.env" ]] && grep -q MAKE_API_KEY "$d/.env" 2>/dev/null && DOTENV="$d" && break
+done
+
+# Write helper script (persists across Bash calls)
+cat > /tmp/xev-run.sh << XEOF
+#!/usr/bin/env bash
+export XEV_DOTENV_DIR="$DOTENV"
+exec "$XEV" --progress never "\$@"
+XEOF
+chmod +x /tmp/xev-run.sh
+
+# Verify
+/tmp/xev-run.sh config check && echo "READY" || echo "SETUP FAILED"
 ```
 
-### Verify configuration
+If setup fails, tell the user: "xev-cli needs a `.env` file with `MAKE_API_KEY` and `MAKE_TEAM_ID` in a mounted folder."
 
-**Note:** `XEV_DOTENV_DIR` must be set BEFORE running config check.
+### IMPORTANT: Do NOT run `config setup --auto`
+
+**NEVER run `config setup --auto` without explicit user instruction.** It creates new Make.com scenarios (costs credits, creates duplicates). Always ask the user first.
+
+## Commands
+
+After setup, use `/tmp/xev-run.sh` for all commands. It handles path resolution, credentials, and progress suppression.
+
+**Global flags** (`--progress`, `--trace`, `--profile`) go **BEFORE** the subcommand. Subcommand flags go after.
+
+### Search
 
 ```bash
-"$XEV" --progress never config check
+/tmp/xev-run.sh search "<query>" --limit 5 --output human
 ```
 
-**If this succeeds** — proceed to the workflows below.
+Evernote search grammar (see `references/search-grammar.md` for full reference):
+- `intitle:planning` — match in title only
+- `notebook:Private` — restrict to notebook
+- `tag:important` — by tag
+- `created:day-7` — created in last 7 days
+- `"exact phrase"` — exact match
 
-**If this fails** — tell the user:
+**Rate limit guidance:** Use small `--limit` values (5-10, not 20+). Each search consumes API quota. If you hit RATE_LIMITED, wait the specified seconds — there's no workaround.
 
-> "xev-cli needs Make.com credentials. Create a `.env` file with `MAKE_API_KEY` and `MAKE_TEAM_ID`, and ensure it's in a mounted folder (Cowork) or set `XEV_DOTENV_DIR` to its directory."
-
-### IMPORTANT: Do NOT run `config setup --auto` automatically
-
-**NEVER run `config setup --auto` without explicit user instruction.** It creates new Make.com scenarios (costs credits, creates duplicates, requires manual Evernote connection in Make.com UI). Always ask the user first.
-
-## Command Syntax
-
-Global flags (`--progress`, `--trace`, `--profile`, `--dotenv`) go **BEFORE** the subcommand:
-
-```
-"$XEV" [global-flags] <subcommand> [subcommand-args]
-```
-
-Examples:
-- `"$XEV" --progress never search "query" --limit 10`
-- `"$XEV" --progress never --trace get "note-id" --format markdown`
-
-## Workflow: Finding Information
-
-### Step 1: Search
+### Get Note
 
 ```bash
-"$XEV" --progress never search "<query>" --limit 10 --output human
+/tmp/xev-run.sh get "<note-id>" --format markdown | jq -r '.data.content'
 ```
 
-For notebook-specific searches:
+With metadata:
 ```bash
-"$XEV" --progress never search "<query>" --notebook "<name>" --limit 10 --output human
+/tmp/xev-run.sh get "<note-id>" --format markdown | jq '{title: .data.title, notebook: .data.notebook, content: .data.content}'
 ```
 
-Present results as a clean list — **never dump raw JSON to the user**. Summarize: title, notebook, date.
-
-### Step 2: Read a Note
+### List Notebooks
 
 ```bash
-"$XEV" --progress never get "<note-id>" --format markdown | jq -r '.data.content'
+/tmp/xev-run.sh notebooks --output human
 ```
 
-To get metadata alongside content:
+### Create Note
+
 ```bash
-"$XEV" --progress never get "<note-id>" --format markdown | jq '{title: .data.title, notebook: .data.notebook, updated: .data.updated, content: .data.content}'
+/tmp/xev-run.sh create --title "<title>" --notebook "<notebook-name>" --content "<markdown>" | jq '.'
 ```
 
-Present the content naturally — format it, summarize if long, highlight what the user asked about.
-
-### Step 3: List Notebooks
-
+For multi-line content:
 ```bash
-"$XEV" --progress never notebooks --output human
-```
-
-## Workflow: Creating Notes
-
-### Step 1: Gather Information
-
-Before creating, confirm with the user:
-- **Title** for the note
-- **Notebook** to save to (list notebooks if unsure)
-- **Content** (markdown format — converted to ENML automatically)
-
-### Step 2: Create
-
-```bash
-"$XEV" --progress never create --title "<title>" --notebook "<notebook-name>" --content "<markdown content>" | jq '.'
-```
-
-For multi-line content, use `--content-file`:
-```bash
-cat > /tmp/xev-note-content.md << 'NOTEOF'
+cat > /tmp/xev-note.md << 'NOTEOF'
 # Meeting Notes
-
 Content here...
 NOTEOF
-"$XEV" --progress never create --title "<title>" --notebook "<notebook-name>" --content-file /tmp/xev-note-content.md | jq '.'
-rm -f /tmp/xev-note-content.md
+/tmp/xev-run.sh create --title "<title>" --notebook "<name>" --content-file /tmp/xev-note.md | jq '.'
+rm -f /tmp/xev-note.md
 ```
 
-## Workflow: Updating Notes
+### Update Note
 
-### Replace content:
 ```bash
-"$XEV" --progress never update "<note-id>" --content "<new markdown content>" | jq '.'
-```
+# Replace content
+/tmp/xev-run.sh update "<note-id>" --content "<markdown>" | jq '.'
 
-### Append to existing note:
-```bash
-"$XEV" --progress never update "<note-id>" --append --content "<content to add>" | jq '.'
-```
+# Append to existing
+/tmp/xev-run.sh update "<note-id>" --append --content "<content to add>" | jq '.'
 
-### Update title only:
-```bash
-"$XEV" --progress never update "<note-id>" --title "<new title>" | jq '.'
+# Update title only
+/tmp/xev-run.sh update "<note-id>" --title "<new title>" | jq '.'
 ```
 
 ## Output Handling
 
-- All commands output JSON to stdout, progress/errors to stderr
-- `--progress never` (global flag, before subcommand) suppresses progress messages
-- **Do NOT use `2>/dev/null`** — it hides error messages
+- JSON to stdout, progress/errors to stderr
+- `--progress never` (handled by /tmp/xev-run.sh) suppresses progress
+- **Do NOT use `2>/dev/null`** — it hides errors
 - Use `--output human` for search/notebooks when presenting to user
-- **Never show raw JSON to the user** — parse and present naturally
+- **Never dump raw JSON** — parse and present naturally
 
 ## Error Handling
 
 ```bash
-result=$("$XEV" --progress never search "query")
+result=$(/tmp/xev-run.sh search "query")
 if echo "$result" | jq -e '.ok == false' >/dev/null 2>&1; then
-  error_code=$(echo "$result" | jq -r '.error.code')
-  error_msg=$(echo "$result" | jq -r '.error.message')
+  echo "$result" | jq -r '.error | "\(.code): \(.message)"'
 fi
 ```
 
 | Error Code | Meaning | What to Do |
 |-----------|---------|-----------|
-| RATE_LIMITED | Evernote API rate limit | Wait the specified seconds, then retry |
-| TIMEOUT | Make.com scenario timed out | Retry once. If persistent, check Make.com. |
-| EVERNOTE_ERROR | Evernote rejected the request | Check note ID, notebook name, or content |
-| NOT_FOUND | Note or notebook not found | Verify the ID. Run `"$XEV" --progress never notebooks` |
-| CONFIG_ERROR | xev-cli not configured | Ensure XEV_DOTENV_DIR is set and .env has credentials |
-| AUTH_FAILED | Webhook URL invalid | Reconfigure webhooks |
-
-For RATE_LIMITED errors, tell the user how long to wait and offer to retry.
+| RATE_LIMITED | Evernote API rate limit | Tell user the wait time. Do NOT retry immediately. |
+| TIMEOUT | Make.com webhook timed out | Retry once |
+| EVERNOTE_ERROR | Evernote rejected request | Check note ID, notebook name, or query |
+| NOT_FOUND | Note/notebook not found | Verify ID. List notebooks with `notebooks` |
+| CONFIG_ERROR | Not configured | Check .env and XEV_DOTENV_DIR |
 
 ## Examples
 
-**User: "Find my notes about the Viewz meeting"**
-1. `"$XEV" --progress never search "Viewz meeting" --limit 5 --output human`
-2. Present results: "I found 3 notes about Viewz meetings..."
-3. If user wants details → `"$XEV" --progress never get <id> --format markdown`
+**User: "Find my notes about Q4 planning"**
+1. `/tmp/xev-run.sh search "Q4 planning" --limit 5 --output human`
+2. Present: "I found 3 notes..."
+3. User picks one → `/tmp/xev-run.sh get <id> --format markdown | jq -r '.data.content'`
 
 **User: "Save these action items to Evernote"**
-1. Ask which notebook
-2. `"$XEV" --progress never create --title "Action Items" --notebook "Work" --content "..."`
-3. "Created note 'Action Items' in Work notebook."
+1. Ask which notebook (or list with `notebooks`)
+2. `/tmp/xev-run.sh create --title "Action Items" --notebook "Work" --content "..."`
 
-## Reference
-
-For full CLI syntax, see `references/cli-reference.md`.
+**User: "Append to my meeting notes"**
+1. Find the note: `/tmp/xev-run.sh search "meeting" --limit 5`
+2. `/tmp/xev-run.sh update <id> --append --content "## Follow-up\n- Item 1"`
