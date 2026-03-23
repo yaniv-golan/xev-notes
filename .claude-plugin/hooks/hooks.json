@@ -1,0 +1,21 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "script": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/session-setup.sh",
+      "timeout": 10000
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/pre-xev.sh",
+      "timeout": 10000
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Read",
+      "script": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/guard-env-read.sh",
+      "timeout": 5000
+    }
+  ]
+}

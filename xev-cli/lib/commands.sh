@@ -739,26 +739,28 @@ cmd_config_check() {
   local config_file
   config_file="$(xev_config_path)"
 
-  if [[ ! -f "$config_file" ]]; then
-    echo "FAIL: Config file not found at ${config_file}"
-    echo "Run: xev-cli config setup"
-    exit 1
-  fi
-  echo "OK: Config file exists"
-
-  local perms
-  perms=$(stat -f '%Lp' "$config_file" 2>/dev/null || stat -c '%a' "$config_file" 2>/dev/null)
-  if [[ "$perms" == "600" ]]; then
-    echo "OK: Permissions are 600"
-  else
-    echo "WARN: Permissions are ${perms} (should be 600)"
-  fi
-
+  # Load config from all sources (file, .env, env vars, auto-discovery)
   xev_load_config "$config_file"
+
+  # Report config source
+  if [[ -f "$config_file" ]]; then
+    echo "OK: Config file exists at ${config_file}"
+    local perms
+    perms=$(stat -f '%Lp' "$config_file" 2>/dev/null || stat -c '%a' "$config_file" 2>/dev/null)
+    if [[ "$perms" == "600" ]]; then
+      echo "OK: Permissions are 600"
+    else
+      echo "WARN: Permissions are ${perms} (should be 600)"
+    fi
+  else
+    echo "INFO: No config file (using env vars or auto-discovery)"
+  fi
+
   if xev_validate_config; then
     echo "OK: All webhook URLs configured"
   else
     echo "FAIL: Missing webhook URLs"
+    echo "Set MAKE_API_KEY and MAKE_TEAM_ID for auto-discovery, or run: xev-cli config setup"
     exit 1
   fi
 

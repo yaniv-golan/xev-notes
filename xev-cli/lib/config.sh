@@ -1,6 +1,66 @@
 # shellcheck shell=bash
 # config.sh — TOML config loading, resolution chain, profile support
 
+# Discover xev-* webhook URLs from Make.com API and populate empty XEV_CFG_WEBHOOK_* vars
+# Requires MAKE_API_KEY and MAKE_TEAM_ID to be set (in env or loaded from .env)
+# Uses a 300s file cache keyed by UID + team ID + zone
+xev_discover_hooks() {
+  local api_key="${MAKE_API_KEY:-}"
+  local team_id="${MAKE_TEAM_ID:-}"
+  local zone="${MAKE_ZONE:-eu2.make.com}"
+
+  [[ -z "$api_key" || -z "$team_id" ]] && return 1
+
+  # Cache keyed by team ID + zone to prevent cross-region contamination
+  local cache="/tmp/xev-hooks-cache-${UID:-0}-${team_id}-$(echo "$zone" | tr '.' '-').json"
+  local cache_age=999999
+  if [[ -f "$cache" ]]; then
+    local now
+    now=$(date +%s)
+    local mtime
+    mtime=$(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null || echo 0)
+    cache_age=$(( now - mtime ))
+  fi
+
+  local hooks_json
+  if [[ $cache_age -lt 300 ]]; then
+    hooks_json=$(cat "$cache")
+  else
+    # Discover via API
+    hooks_json=$(curl -s --max-time 10 \
+      -H "Authorization: Token ${api_key}" \
+      "https://${zone}/api/v2/hooks?teamId=${team_id}&pg%5Blimit%5D=200" 2>/dev/null)
+
+    if ! echo "$hooks_json" | jq -e '.hooks' >/dev/null 2>&1; then
+      return 1  # API call failed or returned unexpected payload
+    fi
+
+    # Filter xev-* hooks, deduplicate by picking highest ID per name
+    hooks_json=$(echo "$hooks_json" | jq '[
+      .hooks[]
+      | select(.name | startswith("xev-"))
+      | {name, url, id}
+    ] | group_by(.name) | map(sort_by(.id) | last)')
+
+    echo "$hooks_json" > "$cache"
+  fi
+
+  # Map hook names to config variables (only fill empty ones)
+  local mappings="search:XEV_CFG_WEBHOOK_SEARCH get:XEV_CFG_WEBHOOK_GET notebooks:XEV_CFG_WEBHOOK_NOTEBOOKS create:XEV_CFG_WEBHOOK_CREATE update:XEV_CFG_WEBHOOK_UPDATE append:XEV_CFG_WEBHOOK_APPEND"
+
+  for mapping in $mappings; do
+    local suffix="${mapping%%:*}"
+    local var="${mapping#*:}"
+    if [[ -z "${!var:-}" ]]; then
+      local url
+      url=$(echo "$hooks_json" | jq -r --arg n "xev-${suffix}" '.[] | select(.name == $n) | .url // empty')
+      if [[ -n "$url" ]]; then
+        printf -v "$var" '%s' "$url"
+      fi
+    fi
+  done
+}
+
 # Simple TOML parser for flat key=value under [section] headers
 # Sets XEV_CFG_* variables
 xev_load_config() {
@@ -18,7 +78,7 @@ xev_load_config() {
   XEV_CFG_WEBHOOK_APPEND=""
   XEV_CFG_WEBHOOK_GET_ATTACHMENT=""
 
-  # Parse TOML file if it exists
+  # Parse TOML file if it exists (config file is optional)
   if [[ -f "$config_file" ]]; then
     local current_section=""
     local target_section=""
@@ -53,19 +113,30 @@ xev_load_config() {
   fi
 
   # Dotenv loading (step 3 in resolution chain)
-  if [[ "${XEV_DOTENV:-false}" == "true" ]] && [[ -f .env ]]; then
+  # XEV_DOTENV_DIR takes precedence; fallback to --dotenv flag (XEV_DOTENV=true → ./.env)
+  local dotenv_file=""
+  if [[ -n "${XEV_DOTENV_DIR:-}" ]]; then
+    dotenv_file="${XEV_DOTENV_DIR}/.env"
+  elif [[ "${XEV_DOTENV:-false}" == "true" ]]; then
+    dotenv_file=".env"
+  fi
+
+  if [[ -n "$dotenv_file" ]] && [[ -f "$dotenv_file" ]]; then
     while IFS='=' read -r key value || [[ -n "$key" ]]; do
       [[ "$key" =~ ^[[:space:]]*# ]] && continue  # Skip comments
       [[ -z "$key" ]] && continue
       key=$(echo "$key" | xargs)  # Trim whitespace
       value=$(echo "$value" | sed 's/^"//;s/"$//')  # Strip quotes
       [[ -z "${!key:-}" ]] && export "$key=$value"  # Only set if not already set
-    done < .env
+    done < "$dotenv_file"
   fi
 
   # Environment variable overrides (highest priority after CLI flags)
   # shellcheck disable=SC2034  # XEV_CFG_* vars are used by commands.sh
   [[ -n "${XEV_MAKE_ZONE:-}" ]] && XEV_CFG_MAKE_ZONE="$XEV_MAKE_ZONE"
+  [[ -n "${MAKE_API_KEY:-}" ]] && export MAKE_API_KEY
+  [[ -n "${MAKE_TEAM_ID:-}" ]] && export MAKE_TEAM_ID
+  [[ -n "${MAKE_ZONE:-}" ]] && export MAKE_ZONE
   # shellcheck disable=SC2034
   [[ -n "${XEV_WEBHOOK_API_KEY:-}" ]] && XEV_CFG_WEBHOOK_API_KEY="$XEV_WEBHOOK_API_KEY"
   [[ -n "${XEV_WEBHOOK_SEARCH:-}" ]] && XEV_CFG_WEBHOOK_SEARCH="$XEV_WEBHOOK_SEARCH"
@@ -75,6 +146,13 @@ xev_load_config() {
   [[ -n "${XEV_WEBHOOK_UPDATE:-}" ]] && XEV_CFG_WEBHOOK_UPDATE="$XEV_WEBHOOK_UPDATE"
   [[ -n "${XEV_WEBHOOK_APPEND:-}" ]] && XEV_CFG_WEBHOOK_APPEND="$XEV_WEBHOOK_APPEND"
   [[ -n "${XEV_WEBHOOK_GET_ATTACHMENT:-}" ]] && XEV_CFG_WEBHOOK_GET_ATTACHMENT="$XEV_WEBHOOK_GET_ATTACHMENT"
+
+  # Auto-discovery: if any required webhook URLs are still empty, try Make.com API
+  if [[ -z "$XEV_CFG_WEBHOOK_SEARCH" || -z "$XEV_CFG_WEBHOOK_GET" || \
+        -z "$XEV_CFG_WEBHOOK_NOTEBOOKS" || -z "$XEV_CFG_WEBHOOK_CREATE" || \
+        -z "$XEV_CFG_WEBHOOK_UPDATE" || -z "$XEV_CFG_WEBHOOK_APPEND" ]]; then
+    xev_discover_hooks || true
+  fi
 
   # Check file permissions (warn if not 0600)
   if [[ -f "$config_file" ]]; then
