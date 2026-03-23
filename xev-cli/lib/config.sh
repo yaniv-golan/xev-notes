@@ -18,7 +18,8 @@ xev_discover_hooks() {
     local now
     now=$(date +%s)
     local mtime
-    mtime=$(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null || echo 0)
+    # Linux stat -c first (stat -f on Linux means "filesystem" and outputs wrong data)
+    mtime=$(stat -c %Y "$cache" 2>/dev/null || stat -f %m "$cache" 2>/dev/null || echo 0)
     cache_age=$(( now - mtime ))
   fi
 

@@ -285,7 +285,7 @@ cmd_create() {
   # Resolve notebook name to GUID (with session cache)
   local nb_response
   local nb_cache="/tmp/xev-notebooks-cache-${UID:-0}.json"
-  if [[ -f "$nb_cache" ]] && [[ $(( $(date +%s) - $(stat -f %m "$nb_cache" 2>/dev/null || stat -c %Y "$nb_cache" 2>/dev/null || echo 0) )) -lt 300 ]]; then
+  if [[ -f "$nb_cache" ]] && [[ $(( $(date +%s) - $(stat -c %Y "$nb_cache" 2>/dev/null || stat -f %m "$nb_cache" 2>/dev/null || echo 0) )) -lt 300 ]]; then
     nb_response=$(cat "$nb_cache")
   else
     xev_progress "Resolving notebook..."
