@@ -42,7 +42,7 @@ Use the found path for all commands. If `xev-cli` is on PATH, use it directly. O
 ### Verify configuration
 
 ```bash
-xev-cli config check 2>/dev/null
+xev-cli config check --progress never
 ```
 
 **If this succeeds** — you're ready to go. Proceed to the workflows below.
@@ -69,12 +69,12 @@ Use this when the user asks to find, search, or read notes.
 ### Step 1: Search
 
 ```bash
-"$XEV_CLI" search "<query>" --limit 10 --output human 2>/dev/null
+"$XEV_CLI" search "<query>" --limit 10 --output human --progress never
 ```
 
 For notebook-specific searches:
 ```bash
-"$XEV_CLI" search "<query>" --notebook "<name>" --limit 10 --output human 2>/dev/null
+"$XEV_CLI" search "<query>" --notebook "<name>" --limit 10 --output human --progress never
 ```
 
 Present results as a clean list — **never dump raw JSON to the user**. Summarize: title, notebook, date.
@@ -86,12 +86,12 @@ If no results, suggest broadening the query or trying different keywords.
 When the user picks a note (or you need its content):
 
 ```bash
-"$XEV_CLI" get "<note-id>" --format markdown 2>/dev/null | jq -r '.data.content' 2>/dev/null
+"$XEV_CLI" get "<note-id>" --format markdown --progress never | jq -r '.data.content'
 ```
 
 To get metadata alongside content:
 ```bash
-"$XEV_CLI" get "<note-id>" --format markdown 2>/dev/null | jq '{title: .data.title, notebook: .data.notebook, updated: .data.updated, content: .data.content}' 2>/dev/null
+"$XEV_CLI" get "<note-id>" --format markdown --progress never | jq '{title: .data.title, notebook: .data.notebook, updated: .data.updated, content: .data.content}'
 ```
 
 Present the content naturally — format it, summarize if long, highlight what the user asked about.
@@ -101,7 +101,7 @@ Present the content naturally — format it, summarize if long, highlight what t
 If the user needs to know what notebooks exist:
 
 ```bash
-"$XEV_CLI" notebooks --output human 2>/dev/null
+"$XEV_CLI" notebooks --output human --progress never
 ```
 
 ## Workflow: Creating Notes
@@ -118,7 +118,7 @@ Before creating, confirm with the user:
 ### Step 2: Create
 
 ```bash
-"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content "<markdown content>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content "<markdown content>" --progress never | jq '.'
 ```
 
 For multi-line content, use `--content-file`:
@@ -128,7 +128,7 @@ cat > /tmp/xev-note-content.md << 'NOTEOF'
 
 Content here...
 NOTEOF
-"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content-file /tmp/xev-note-content.md 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" create --title "<title>" --notebook "<notebook-name>" --content-file /tmp/xev-note-content.md --progress never | jq '.'
 rm -f /tmp/xev-note-content.md
 ```
 
@@ -138,33 +138,35 @@ Report the created note ID back to the user.
 
 ### Replace content:
 ```bash
-"$XEV_CLI" update "<note-id>" --content "<new markdown content>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --content "<new markdown content>" --progress never | jq '.'
 ```
 
 ### Append to existing note:
 ```bash
-"$XEV_CLI" update "<note-id>" --append --content "<content to add>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --append --content "<content to add>" --progress never | jq '.'
 ```
 
 ### Update title only:
 ```bash
-"$XEV_CLI" update "<note-id>" --title "<new title>" 2>/dev/null | jq '.' 2>/dev/null
+"$XEV_CLI" update "<note-id>" --title "<new title>" --progress never | jq '.'
 ```
 
 ## Output Handling
 
-- All commands output JSON to stdout and progress to stderr
-- Redirect stderr with `2>/dev/null` for clean output
+- All commands output JSON to stdout and progress/errors to stderr
+- Use `--progress never` to suppress progress messages (cleaner than `2>/dev/null`)
+- **Do NOT use `2>/dev/null`** — it hides error messages and makes failures silent. Instead, capture stderr separately or use `--progress never` to suppress only progress output.
 - Use `--output human` for search/notebooks when presenting to user
 - Use `--output json` or default JSONL when processing programmatically
 - **Never show raw JSON to the user** — parse and present naturally
+- If a command fails, check both stdout (JSON error) and stderr (diagnostic info)
 
 ## Error Handling
 
 Check for errors in JSON responses:
 
 ```bash
-result=$("$XEV_CLI" search "query" 2>/dev/null)
+result=$("$XEV_CLI" search "query" --progress never)
 if echo "$result" | jq -e '.ok == false' >/dev/null 2>&1; then
   error_code=$(echo "$result" | jq -r '.error.code')
   error_msg=$(echo "$result" | jq -r '.error.message')
