@@ -4,7 +4,7 @@ description: "Search, read, create, and update Evernote notes using xev-cli. Use
 license: MIT
 metadata:
   author: Yaniv Golan
-  version: "0.2.0"
+  version: "0.2.1"
   compatibility: "Requires xev-cli (bash), jq, curl, and pandoc for write operations."
 ---
 

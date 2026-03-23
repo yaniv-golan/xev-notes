@@ -1,6 +1,6 @@
 {
   "name": "xev-evernote",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Access Evernote notes via xev-cli for searching, reading, creating, and updating notes.",
   "author": {
     "name": "Yaniv Golan",
