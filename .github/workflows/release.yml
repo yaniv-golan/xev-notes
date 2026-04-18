@@ -31,7 +31,7 @@ jobs:
           VERSION LICENSE README.md
         sha256sum "xev-${VERSION}.zip" > "xev-${VERSION}.zip.sha256"
 
-    - uses: softprops/action-gh-release@v2
+    - uses: softprops/action-gh-release@v3
       with:
         files: |
           xev-*.zip
